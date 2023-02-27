@@ -178,4 +178,6 @@ paste <(ls -1 ${h2_file}) \
 grep -A11 p2 *LR_rg.log | grep -v Analysis | grep -e p2 -e sumstats | grep -v -e 'log-$' -e 'time elapsed' > ${out_dir}summary_LRrg_ldsc.table
 grep -A11 p2 *rg.log | grep -v -e LR -e cognitive -e readingGenLang | grep -v Analysis | grep -e p2 -e sumstats | grep -v -e 'log-$' -e 'time elapsed' > ${out_dir}summary_rg_ldsc.table
 grep -A11 p2 *cognitive_rg.log | grep -v Analysis | grep -e p2 -e sumstats | grep -v -e 'log-$' -e 'time elapsed' > ${out_dir}summary_cognitive_rg_ldsc.table
+grep -A11 p2 *readingGenLang_rg.log | grep -v Analysis | grep -e p2 -e sumstats | grep -v -e 'log-$' -e 'time elapsed' > ${out_dir}_readingGenLang_rg_ldsc.table
+
 #------------------------------------

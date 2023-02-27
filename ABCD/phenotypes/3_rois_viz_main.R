@@ -5,7 +5,6 @@ rm(list=ls())
 args <- commandArgs(TRUE)
 config_file<-args[1]
 config_file="F:/projects//resources/datasets/ABCD/scripts/phenotypes/reading.config" # parameters for this run
-# config_file="F:/projects//resources/datasets/ABCD/scripts/phenotypes/picvocab.config" # parameters for this run
 hemi="lh"
 #---------------------------------------------------
 
@@ -50,6 +49,7 @@ library(ggsegDesterieux)
 # define directories
 if (Sys.info()['sysname']=='Windows') {dir="F:/projects/"} else {dir="/export/home/acarrion/acarrion/projects/"} #"/bcbl/home/home_a-f/acarrion/acarrion/projects/"
 scripts_dir=paste(dir,"/resources/datasets/ABCD/scripts/phenotypes/",sep="")
+source(paste0(scripts_dir,"general_functions.R"))
 # source config file to define parameters for this run
 source(config_file)
 #---------------------
@@ -83,6 +83,7 @@ ttables<-c( paste(paste("baseline","/tables/",sep=""),
                   list.files(paste("baseline","/tables/",sep=""),pattern="t_table"),sep="/"))
 
 ttables<-ttables[grep("m0b",ttables,invert=TRUE)] # not TBV corrected
+ttables<-ttables[grep("int",ttables,invert=TRUE)] # not interactions
 
 for (f in ttables){
   
@@ -208,14 +209,14 @@ csa_betas <- ggplot(data=d_csa,aes(x=Estimate,y=region,color=adj,shape=adj)) +
   ## more general styling
   scale_color_manual(values=brewer.pal(12, "Paired")[c(4,3)],
                      labels=c(
-                       bquote("Model1a: Reading  ~ covariates + " ~ CSA[LH]),
-                       bquote("Model2a: Reading  ~ covariates + " ~ totalCSA[LH] + CSA[LH]) )
+                       bquote(Model1a: ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ CSA[.(toupper(hemi))] ),
+                       bquote(Model2a: ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ totalCSA[.(toupper(hemi))] + CSA[.(toupper(hemi))] ) )
   ) +
   scale_shape_manual(values=c(19,17),
                      labels=c(
-                       bquote("Model1a: Reading  ~ covariates + " ~ CSA[LH]),
-                       bquote("Model2a: Reading  ~ covariates + " ~ totalCSA[LH] + CSA[LH]) ) 
-                     ) +
+                       bquote(Model1a:  ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ CSA[.(toupper(hemi))] ),
+                       bquote(Model2a:  ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ totalCSA[.(toupper(hemi))] + CSA[.(toupper(hemi))] ) )
+  ) +
   labs(title="",y="",color="Model",shape="Model") +
   theme(legend.position="bottom",legend.direction = "vertical") +
   # same x range for csa and ct
@@ -240,13 +241,13 @@ ct_betas <- ggplot(data=d_ct,aes(x=Estimate,y=region,color=adj,shape=adj)) +
   ## more general styling
   scale_color_manual(values=brewer.pal(12, "Paired")[c(8,7)],
                      labels=c(
-                       bquote("Model1a: Reading  ~ covariates + " ~ CT[LH]),
-                       bquote("Model2a: Reading  ~ covariates + " ~ meanCT[LH] + CT[LH]) )
+                       bquote(Model1a: ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ CT[.(toupper(hemi))] ),
+                       bquote(Model2a: ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ meanCT[.(toupper(hemi))] + CT[.(toupper(hemi))] ) )
   ) +
   scale_shape_manual(values=c(19,17),
                      labels=c(
-                       bquote("Model1a: Reading  ~ covariates + " ~ CT[LH]),
-                       bquote("Model2a: Reading  ~ covariates + " ~ meanCT[LH] + CT[LH]) )
+                       bquote(Model1a:  ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ CT[.(toupper(hemi))] ),
+                       bquote(Model2a:  ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ meanCT[.(toupper(hemi))] + CT[.(toupper(hemi))] ) )
   ) +
   labs(title="",y="",color="Model",shape="Model") +
   theme(legend.position="bottom",legend.direction = "vertical") +
@@ -258,13 +259,13 @@ ct_betas <- ggplot(data=d_ct,aes(x=Estimate,y=region,color=adj,shape=adj)) +
 all_betas<-plot_grid(csa_betas,ct_betas,nrow=1,align="hv")
 
 ## betas
-ggsave(csa_betas,file=paste(out_dir,pheno,"_",atlas,"_","area_betas",".pdf",sep=""),height=12,width=10)
-ggsave(ct_betas,file=paste(out_dir,pheno,"_",atlas,"_","thick_betas",".pdf",sep=""),height=12,width=10)
-ggsave(all_betas,file=paste(out_dir,pheno,"_",atlas,"_","all_betas",".pdf",sep=""),height=12,width=10)
+# ggsave(csa_betas,file=paste(out_dir,pheno,"_",atlas,"_","area_betas",".pdf",sep=""),height=12,width=10)
+# ggsave(ct_betas,file=paste(out_dir,pheno,"_",atlas,"_","thick_betas",".pdf",sep=""),height=12,width=10)
+# ggsave(all_betas,file=paste(out_dir,pheno,"_",atlas,"_","all_betas",".pdf",sep=""),height=12,width=10)
 
 #---------------------
-Ttitle <- ggdraw() + draw_label("Regional effects of CT on reading\n(adjusted for mean CT)", fontface='bold',size=14)
-Atitle <- ggdraw() + draw_label("Regional effects of CSA on reading\n(adjusted for total CSA)", fontface='bold',size=14)
+Ttitle <- ggdraw() + draw_label(paste0("Regional effects of CT on ",pheno,"\n(adjusted for mean CT)"), fontface='bold',size=14)
+Atitle <- ggdraw() + draw_label(paste0("Regional effects of CSA on ",pheno,"\n(adjusted for total CSA)"), fontface='bold',size=14)
 
 plot_thick_m0d_all <- plot_grid( Ttitle, plot_grid(plotlist =lapply(thick_list[grep("m0d$|m0d_ROIs",thick_list,invert=FALSE)], 
                                                           function(x) {get(x) + theme(legend.position="none")+labs(caption="")}),
@@ -274,8 +275,8 @@ plot_area_m0c_all <- plot_grid( Atitle, plot_grid(plotlist =lapply(area_list[gre
                                          ncol=1),  legend_t , ncol = 1, rel_heights = c(.1, 1, .1)) 
 
 
-ggsave(plot_area_m0c_all ,file=paste(out_dir,pheno,"_",atlas,"_area_m0c",".pdf",sep=""),height=5,width=7)
-ggsave(plot_thick_m0d_all ,file=paste(out_dir,pheno,"_",atlas,"_thick_m0d",".pdf",sep=""),height=5,width=7)
+# ggsave(plot_area_m0c_all ,file=paste(out_dir,pheno,"_",atlas,"_area_m0c",".pdf",sep=""),height=5,width=7)
+# ggsave(plot_thick_m0d_all ,file=paste(out_dir,pheno,"_",atlas,"_thick_m0d",".pdf",sep=""),height=5,width=7)
 
 
 
@@ -293,28 +294,30 @@ figure <- plot_grid(csa_betas,
                     plot_thick_m0d_all +  theme(plot.background = element_rect(color = brewer.pal(12, "Paired")[7],size=2)),
                     NULL,
                     ncol=1,rel_heights = c(1,1,0.25),
-                    labels=c("B","C","")),
+                    labels=c("b","c","")),
           ct_betas,
           nrow=1,
           rel_widths = c(1,1.1,1),
-          labels=c("A","","D")
+          labels=c("a","","d")
           )
 
 
 ggsave(figure,file=paste(out_dir,pheno,"_",atlas,".pdf",sep=""),height=16,width=22)
+ggsave(figure,file=paste(out_dir,pheno,"_",atlas,".svg",sep=""),height=16,width=22)
+
 
 figure2 <- plot_grid(
-  plot_grid(csa_betas,ct_betas,labels=c("A","B"),nrow=1),
+  plot_grid(csa_betas,ct_betas,labels=c("a","b"),nrow=1),
   
   plot_grid(plot_area_m0c_all +  theme(plot.background = element_rect(color = brewer.pal(12, "Paired")[3],size=2)),
             plot_thick_m0d_all +  theme(plot.background = element_rect(color = brewer.pal(12, "Paired")[7],size=2)),
-            labels=c("C","D"),nrow=1),
+            labels=c("c","d"),nrow=1),
   ncol=1,rel_heights = c(4,1.5)
 )
 
 
 ggsave(figure2,file=paste(out_dir,pheno,"_",atlas,"_long.pdf",sep=""),height=16,width=12)
-ggsave(figure2,file=paste(out_dir,pheno,"_",atlas,"_long.png",sep=""),height=18,width=12)
+# ggsave(figure2,file=paste(out_dir,pheno,"_",atlas,"_long.png",sep=""),height=18,width=12)
 
 #---------------------
 # clean intermediate

@@ -4,10 +4,6 @@ rm(list=ls())
 #---------------------
 args <- commandArgs(TRUE)
 config_file<-args[1]
-
-config_file="reading.config" # parameters for this run
-# config_file="F:/projects//resources/datasets/ABCD/scripts/phenotypes/reading.config" # parameters for this run
-
 #---------------------
 
 
@@ -31,17 +27,16 @@ scripts_dir=paste(dir,"/resources/datasets/ABCD/scripts/phenotypes/",sep="")
 source(paste(scripts_dir,"general_functions.R",sep=""))
 
 # source config file to define parameters for this run
-source(paste(scripts_dir,config_file,sep="")) # as parameter
-# source(config_file) # if hard-coded
+# source(paste(scripts_dir,config_file,sep="")) # if hard-coded
+source(config_file) # as parameter
 
 # get to working dir
 setwd(working_dir)
 
-
 #---------------------------------------------------
 # get subset definitions, as defined in define_subsets.R
 ## and subset to selected individuals only (i.e. s)
-id_subset<-read.table(paste0(gen_v,"_subsets.table"),header=TRUE) %>% select("subjectid",s)
+id_subset<-read.table(paste0(gen_v,"_subsets.table"),header=TRUE) %>% dplyr::select(all_of("subjectid"),s)
 id_subset<-id_subset[which(id_subset[,s]==1),]
 
 # get PCs, from file defined in config
@@ -50,13 +45,13 @@ colnames(pcs)<-c("FID","subjectid",paste("PC",1:100,sep=""),"pheno")
 pcs<-pcs %>% select(-pheno)
 
 # read data
-dat <- readRDS(paste0(v,"_baseline_sMRI.Rds")) 
-# NROW(dat) # 11265
+dat <- readRDS(paste0(v,"_",project,".Rds")) # "_baseline_sMRI.Rds"
+# NROW(dat) # 16848
 #---------------------------------------------------
 # combine and subset data
 d<-merge(dat,id_subset) # N=10455
 d<-merge(d,pcs) # N=10454
-d$rel_family_id<-as.factor(d$rel_family_id) 
+d$rel_family_id<-as.factor(d$rel_family_id)
 #---------------------------------------------------
 
 #---------------------------------------------------
@@ -65,11 +60,12 @@ d$rel_family_id<-as.factor(d$rel_family_id)
 # - covs_d ## covariates
 # - cov11, cov12 and cov2 ## additional covariates
 # - covs_int # interaction terms to consider
-covs_d=c("sex","age","high.educ.bl","household.income.bl"
+covs_d=c("eventname", # timepoint
+         "sex","age",
+         "high.educ.bl","household.income.bl"
          # "married.bl", "race.4level", "hisp"
          )
 covs_def<-c(covs_d,paste("PC",1:10,sep=""))
-
 
 # independent variables to assess
 # i.e., defines rois to be used in analysis
@@ -81,7 +77,6 @@ total_vol<-total[grep("vol*.*total$",total)]
 total_vol23<-paste(total_vol,"2.3",sep="")
 lh_area<-total[grep("area*.*lh",total)]
 lh_thick<-total[grep("thick*.*.lh",total)]
-
 ## covariates to consider (for sensitivity)
 covs_add<-c(total_vol,lh_area,lh_thick,cov11,cov12,cov2)
 
@@ -95,9 +90,13 @@ c_vars<-vars[grep("character|factor",d[,vars] %>% sapply(.,class))]
 
 # define rois
 rois<-colnames(d)[grep(atlas,colnames(d))]
-rois<-rois[grep("thick|area",rois)]
-rois<-rois[grep("total",rois,invert=TRUE)]
-rois_lh<-rois[grep("lh",rois)]
+# rois<-rois[grep("thick|area",rois)]
+# rois<-rois[grep("total",rois,invert=TRUE)]
+# rois_lh<-rois[grep("lh",rois)]
+
+## for corpus callosum
+rois<-rois[grep("cc",rois)]
+
 #---------------------------------------------------
 # define complete data
 
@@ -155,7 +154,7 @@ if(!dir.exists(paste(working_dir,v,sep="/"))){dir.create(paste(working_dir,v,sep
 if(!dir.exists(paste(working_dir,v,s,sep="/"))){dir.create(paste(working_dir,v,s,sep="/"))}
 if(!dir.exists(paste(working_dir,v,s,pheno,sep="/"))){dir.create(paste(working_dir,v,s,pheno,sep="/"))}
 #
-base_dir=paste(working_dir,v,s,pheno,paste("baseline",atlas,sep="_"),sep="/")
+base_dir=paste(working_dir,v,s,pheno,project,sep="/")
 fig_dir=paste(base_dir,"/trim",trim_val,"/figures/",sep="")
 if(!dir.exists(base_dir)){dir.create(base_dir)}
 if(!dir.exists(paste(base_dir,"/trim",trim_val,"/",sep=""))){dir.create(paste(base_dir,"/trim",trim_val,"/",sep=""))}
@@ -171,7 +170,7 @@ table(d0$trimmed)
 rm(w2,dv2)
   
 # save lists of IDs per subset
-write.table(d0[,c("subjectid","trimmed")],file=paste(base_dir,"/",v,"_baseline_sMRI_baseline_subjectIDs_",s ,"_trim",trim_val,".txt",sep=""))
+write.table(d0[,c("subjectid","trimmed")],file=paste(base_dir,"/",v,"_",project,"_baseline_subjectIDs_",s ,"_trim",trim_val,".txt",sep=""))
 
 # for all samples
 summary_all<-summary_vars(d=d0,n_vars=n_vars,c_vars=c_vars)

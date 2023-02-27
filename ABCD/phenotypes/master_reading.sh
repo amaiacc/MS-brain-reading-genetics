@@ -8,8 +8,6 @@ cd ${scripts_dir}
 #dos2unix *
 
 config_file=${scripts_dir}reading.config
-#config_file=${scripts_dir}picvocab.config
-
 
 # get all keys from config file --> to bash
 keys=( $(grep -oP '\w+(?==)' reading.config) )

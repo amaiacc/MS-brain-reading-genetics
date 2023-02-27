@@ -1,10 +1,8 @@
 # perform mediation analyses, to explore the relationship between:
 ## dv: reading
-## iv: CSAtemp
-## mediation: CSAtotal
-# is the association between reading and temporal CSA mediated through total CSA?
-# or the other way around!?
-# step2: include PGS into models...
+## iv: PGS (CP)
+## mediation: CSA (CSAtotal and CSTstg)
+# is the association between reading and PGS-CP mediated through CSA?
 #---------------------
 
 # clean workspace
@@ -20,9 +18,9 @@ config_file="reading.config" # parameters for this run
 # define libraries
 library(dplyr); library(tidyr)
 library(data.table)
-library(gamm4) #
+# library(gamm4) #
 library(lme4)
-library(MuMIn)
+# library(MuMIn)
 library(psych)
 # library(lmerTest)
 library(mediation)
@@ -30,7 +28,15 @@ library(mediation)
 
 #---------------------------------------------------
 # define directories
-if (Sys.info()['sysname']=='Windows') {dir="F:/projects/"} else {dir="/export/home/acarrion/acarrion/projects/"} #"/bcbl/home/home_a-f/acarrion/acarrion/projects/"
+if (Sys.info()['sysname']=='Windows') {
+  dir="F:/projects/"
+  } else {
+    if(length(grep("cajal",Sys.info()['nodename']))==1){
+      dir="/bcbl/home/home_a-f/acarrion/projects/"
+    } else {
+      dir="/export/home/acarrion/acarrion/projects/"
+    }
+  }
 scripts_dir=paste(dir,"/resources/datasets/ABCD/scripts/phenotypes/",sep="")
 #---------------------
 # source to get custom functions for mediation
@@ -84,7 +90,8 @@ controls<-c("smri_thick_cort.destrieux_mean.lh",
             "smri_area_cort.destrieux_g.temp.sup.lateral.rh",
             "smri_area_cort.destrieux_total.rh") # add as neg control...
 #
-cogn_covs=c("nihtbx_fluidcomp_uncorrected","pea_wiscv_tss")
+cogn_covs0=c("nihtbx_fluidcomp_uncorrected","pea_wiscv_tss")
+cogn_covs1=c(cogn_covs0,"nihtbx_picvocab_uncorrected")
 #---------------------------------------------------
 # Define models to run
 models_table<-read.csv(paste(input_dir,"trim",trim_val,"/tables/baseline_models_table.csv",sep=""),stringsAsFactors = FALSE)
@@ -100,7 +107,7 @@ covs=strsplit(model_covs,") \\+ ") %>% sapply("[[",2) %>% strsplit(.," \\+ ") %>
 random=strsplit(model_covs," \\+ ") %>% sapply("[[",1) %>% unlist() %>% gsub("~ ","",.)
 #---------------------------------------------------
 # MEDIATION
-# Mediation of CP on CSA effect on reading
+# Mediation of CSA on CP effect on reading
 ## dv already defined by the config file, it's constant
 #---------------------------------------------------
 CSAt<-rois_lh[grep("total",rois_lh)]
@@ -108,63 +115,28 @@ CSAstg<-rois_lh[grep("g.temp.sup.lateral.lh",rois_lh)]
 #---------------------------------------------------
 # dv: reading
 # iv: pgs
-mediator<- "CP_0.05"
+iv<- "CP_0.05"
 #---------------------------------------------------
-# iv: CSA (total)
-iv=CSAt
+# mediator: CSA (total)
+mediator=CSAt
 #
 read_med_CSAt<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=covs,random=random,d=d)
-read_med_CSAt_adjCogn<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=c(covs,cogn_covs),random=random,d=d)
 read_med_CSAt_adjCSAstg<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=c(covs,CSAstg),random=random,d=d)
-read_med_CSAt_adjCSAtRH<-run_mediation(dv=dv,iv=iv,mediator=mediator,
-                                         covs=c(covs,"smri_area_cort.destrieux_total.rh"),
-                                         random=random,d=d)
-rm(iv)
+read_med_CSAt_adjCogn0<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=c(covs,cogn_covs0),random=random,d=d)
+read_med_CSAt_adjCogn1<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=c(covs,cogn_covs1),random=random,d=d)
+
+rm(mediator)
 #---------------------------------------------------
-# iv: CSA (stg)
-iv=CSAstg
+# mediator: CSA (stg)
+mediator=CSAstg
 #
 read_med_CSAstg<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=covs,random=random,d=d)
-read_med_CSAstg_adjCogn<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=c(covs,cogn_covs),random=random,d=d)
 read_med_CSAstg_adjCSAt<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=c(covs,CSAt),random=random,d=d)
-read_med_CSAstg_adjCSAstgRH<-run_mediation(dv=dv,iv=iv,mediator=mediator,
-                                       covs=c(covs,"smri_area_cort.destrieux_g.temp.sup.lateral.rh"),
-                                       random=random,d=d)
+read_med_CSAstg_adjCogn0<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=c(covs,cogn_covs0),random=random,d=d)
+read_med_CSAstg_adjCogn1<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=c(covs,cogn_covs1),random=random,d=d)
 
-rm(iv)
+rm(mediator)
 
-#---------------------------------------------------
-# mediation RH
-
-# total
-iv=gsub("lh","rh",CSAt)
-read_med_CSAtRH<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=covs,random=random,d=d)
-rm(iv)
-
-# stg
-iv=gsub("lh","rh",CSAstg)
-read_med_CSAstgRH<-run_mediation(dv=dv,iv=iv,mediator=mediator,covs=covs,random=random,d=d)
-read_med_CSAstgRH_adjCSAstg<-run_mediation(dv=dv,iv=iv,mediator=mediator,
-                                 covs=c(covs,"smri_area_cort.destrieux_g.temp.sup.lateral.lh"),
-                                 random=random,d=d)
-rm(iv)
-
-#---------------------------------------------------
-# DV: fluid IQ measures
-# iv: total
-iv=CSAt
-fiq1_med_CSAt<-run_mediation(dv=cogn_covs[1],iv=iv,mediator=mediator,covs=covs,random=random,d=d)
-fiq1_med_CSAt_adjRead<-run_mediation(dv=cogn_covs[1],iv=iv,mediator=mediator,covs=c(covs,dv),random=random,d=d)
-fiq2_med_CSAt<-run_mediation(dv=cogn_covs[2],iv=iv,mediator=mediator,covs=covs,random=random,d=d)
-fiq2_med_CSAt_adjRead<-run_mediation(dv=cogn_covs[2],iv=iv,mediator=mediator,covs=c(covs,dv),random=random,d=d)
-rm(iv)
-# iv: stg
-iv=CSAstg
-fiq1_med_CSAstg<-run_mediation(dv=cogn_covs[1],iv=iv,mediator=mediator,covs=covs,random=random,d=d)
-fiq1_med_CSAstg_adjRead<-run_mediation(dv=cogn_covs[1],iv=iv,mediator=mediator,covs=c(covs,dv),random=random,d=d)
-fiq2_med_CSAstg<-run_mediation(dv=cogn_covs[2],iv=iv,mediator=mediator,covs=covs,random=random,d=d)
-fiq2_med_CSAstg_adjRead<-run_mediation(dv=cogn_covs[2],iv=iv,mediator=mediator,covs=c(covs,dv),random=random,d=d)
-rm(iv)
 #---------------------------------------------------
 # summarize all runs for reading
 read_mediation_all<-lapply(ls(pattern="read_med_"),function(x){
@@ -173,26 +145,15 @@ read_mediation_all<-lapply(ls(pattern="read_med_"),function(x){
 }) %>% do.call("rbind",.) %>%
   mutate(adjustement=gsub(paste(covs,collapse=","),"",covariates) %>% gsub("^,","",.)) 
 
-# iq
-fiq_mediation_all<-lapply(ls(pattern="fiq1_med_|fiq2_med_"),function(x){
-  get(x) %>% get_mediation_table() %>% 
-    mutate(mediation_name=x)
-}) %>% do.call("rbind",.)  %>%
-  mutate(adjustement=gsub(paste(covs,collapse=","),"",covariates) %>% gsub("^,","",.))
-
-
 #---------------------------------------------------
 # clean tables to include only relevant columns...
 read_clean <- read_mediation_all %>% distinct() %>%
-  dplyr::select(dv,iv,mediator,adjustement,stat,Estimate,CIupper,CIlower,p,adjustement,mediation_name)
-iq_clean <- fiq_mediation_all %>% distinct() %>%
   dplyr::select(dv,iv,mediator,adjustement,stat,Estimate,CIupper,CIlower,p,adjustement,mediation_name)
 #---------------------------------------------------
 
 #---------------------------------------------------
 # save results from the mediation analyses
-write.csv(read_clean,paste0(out_dir,"/tables/reading_PGS_mediation2_summary.csv"),row.names=FALSE)
-write.csv(iq_clean,paste0(out_dir,"/tables/fiq_PGS_mediation2_summary.csv"),row.names=FALSE)
-save(list = ls(all.names = TRUE,pattern="read_med"), file = paste0(out_dir,"reading_PGS_mediation2.RData"))
-save(list = ls(all.names = TRUE,pattern="fiq1_med|fiq2_med"), file = paste0(out_dir,"fiq_PGS_mediation2.RData"))
+write.csv(read_clean,paste0(out_dir,"/tables/reading_PGS_mediation_v2_summary_MC10000.csv"),row.names=FALSE)
+
+save(list = ls(all.names = TRUE,pattern="read_med"), file = paste0(out_dir,"reading_PGS_mediation_v2_MC10000.RData"))
 #---------------------------------------------------

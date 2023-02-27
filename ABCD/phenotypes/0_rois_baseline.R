@@ -30,13 +30,14 @@ if (Sys.info()['sysname']=='Windows') {dir="F:/projects/"} else {dir="/export/ho
 scripts_dir=paste(dir,"/resources/datasets/ABCD/scripts/phenotypes/",sep="")
 #---------------------
 # source config file to define parameters for this run
-source(paste(scripts_dir,config_file,sep=""))
+source(paste(scripts_dir,config_file,sep="")) # if hard-coded
+# source(config_file) # as parameter
 #---------------------
 geno_dir=paste(dir,"resources/datasets/ABCD/data/working_data/genotyping/preImputation_QC/intermediate_files/sampleQC/PopStr/",sep="")
 pheno_dir=paste(dir,"resources/datasets/ABCD/data/working_data/phenotypes/",v,"/",s,"/",pheno,"/",sep="")
 #
 working_dir=paste(dir,"resources/datasets/ABCD/data/working_data/phenotypes/",sep="")
-base_dir=paste(pheno_dir,"baseline","_",atlas,"/","trim",trim_val,"/",sep="")
+base_dir=paste(pheno_dir,"baseline_destrieux/","/","trim",trim_val,"/",sep="")
 if(!dir.exists(base_dir)){dir.create(base_dir)}
 if(!dir.exists(paste(base_dir,"/tables/",sep=""))){dir.create(paste(base_dir,"/tables/",sep=""))}
 if(!dir.exists(paste(base_dir,"/figures/",sep=""))){dir.create(paste(base_dir,"/figures/",sep=""))}
@@ -45,8 +46,8 @@ if(!dir.exists(paste(base_dir,"/figures/","/model_diagnosis/",sep=""))){dir.crea
 setwd(working_dir)
 #---------------------------------------------------
 # read data
-dat <- readRDS(paste(working_dir,v,"_baseline_sMRI.Rds",sep=""))
-ids<-read.table(file=paste(base_dir,"/../",v,"_baseline_sMRI_baseline_subjectIDs_",s ,"_trim",trim_val,".txt",sep="")) # %>% rename(subjectid=V1,trimmed=V2)
+dat <- readRDS(paste(working_dir,v,"_",project,".Rds",sep=""))
+ids<-read.table(file=paste(base_dir,"/../",v,"_",project,"_baseline_subjectIDs_",s ,"_trim",trim_val,".txt",sep="")) # %>% rename(subjectid=V1,trimmed=V2)
 # get PCs, from file defined in config
 pcs<-fread(paste(geno_dir,pc_file,sep=""),header=FALSE) ## all samples
 colnames(pcs)<-c("FID","subjectid",paste("PC",1:100,sep=""),"pheno")
@@ -82,9 +83,12 @@ lh_thick<-total[grep("thick*.*.lh",total)]
 
 # define rois
 rois<-colnames(d)[grep(atlas,colnames(d))]
-rois<-rois[grep("thick|area",rois)]
-rois<-rois[grep("total",rois,invert=TRUE)]
-rois_lh<-rois[grep("lh",rois)]
+# rois<-rois[grep("thick|area",rois)]
+# rois<-rois[grep("total",rois,invert=TRUE)]
+# rois_lh<-rois[grep("lh",rois)]
+
+## for corpus callosum
+# rois<-rois[grep("cc",rois)]
 #---------------------------------------------------
 ## covariates to consider (for sensitivity)
 covs_add<-c(total_vol,cov11,cov12,cov2)
@@ -92,9 +96,10 @@ covs_add<-c(total_vol,cov11,cov12,cov2)
 ## all variables to consider
 vars<-c(covs_def,dv,covs_add,"rel_family_id","abcd_site",
         mri_info,
-        rois,
-        total,total_vol23
-) #ancestry_vars,
+        rois
+        )
+        # total,total_vol23
+#ancestry_vars,
 
 #---------------------------------------------------
 # define dataset to be used
@@ -102,10 +107,10 @@ vars<-c(covs_def,dv,covs_add,"rel_family_id","abcd_site",
 d<-d %>% select("subjectid",vars)
 d<-d[complete.cases(d),]
 d<-d %>% mutate_if(is.numeric,scale)
-f=paste(base_dir,v,"_baseline_sMRI","_",pheno,"_","trim",trim_val,"_","scaled4analysis.csv",sep="")
+f=paste(base_dir,v,"_",project,"_",pheno,"_","trim",trim_val,"_","scaled4analysis.csv",sep="")
 f2=gsub(".csv",".RDS",f)
-# write.csv(d,f,row.names=FALSE)
-# saveRDS(d, file = f2) # save as RDS as well, as it saves the ordered factor levels for object
+write.csv(d,f,row.names=FALSE)
+saveRDS(d, file = f2) # save as RDS as well, as it saves the ordered factor levels for object
 rm(f,f2)
 
 #---------------------------------------------------
@@ -133,26 +138,30 @@ m0.gam<-gamm4(as.formula(paste(dv,"~",paste(covs_def,collapse=" + "))),
 #---------------------------------------------------
 # visualize model
 ## assumptions
-m0_plot_diag<-plot_model(m0,type="diag")
-m0_plot_diag[5]<-m0_plot_diag[[2]][1]
-m0_plot_diag[6]<-m0_plot_diag[[2]][2]
-plot_grid(plotlist=m0_plot_diag[c(1,3:6)],nrow=2) %>% 
-  ggsave(.,
-         file=paste(base_dir,
-                    "/figures/model_diagnosis/",dv,"_m0","_jsplot",".png",sep=""),
-         width=20,height=6
-  )
+# m0_plot_diag<-plot_model(m0,type="diag")
+# m0_plot_diag[5]<-m0_plot_diag[[2]][1]
+# m0_plot_diag[6]<-m0_plot_diag[[2]][2]
+# cowplot::plot_grid(plotlist=m0_plot_diag[c(1,3:6)],nrow=2) %>%
+#   ggsave(.,
+#          file=paste(base_dir,
+#                     "/figures/model_diagnosis/",dv,"_m0","_sjplot",".png",sep=""),
+#          width=20,height=6
+#   )
 ## slope of coeffs for each predictor vs dv
-m0_plot_diag1<-plot_model(m0,type="slope")
-ggsave(m0_plot_diag1,
-         file=paste(base_dir,
-                    "/figures/model_diagnosis/",dv,"_m0","_slopes_jsplot",".png",sep="")
-  )
+# m0_plot_diag1<-plot_model(m0,type="slope")
+# ggsave(m0_plot_diag1,
+#          file=paste(base_dir,
+#                     "/figures/model_diagnosis/",dv,"_m0","_slopes_sjplot",".png",sep="")
+#   )
 # estimates
-m0_plot_estimates<-plot_model(m0,type="est",show.values=TRUE)
-ggsave(m0_plot_estimates,
+m0_plot_estimates<-plot_model(m0,type="est",
+                              df.method="satterthwaite",
+                              p.style="numeric",
+                              show.df=TRUE,
+                              show.values=TRUE)
+ggsave(m0_plot_estimates,width=7,height=8,
        file=paste(base_dir,
-                  "/figures/",dv,"_m0","_estimates_jsplot",".png",sep="")
+                  "/figures/",dv,"_m0","_estimates_jsplot_df",".png",sep="")
 )
 # clean intermediate
 rm(list=ls(pattern="m0_plot"))
@@ -249,64 +258,64 @@ rm(sum_table,anova_table,effect_table)
 models_table<-data.frame(model_name=c(
                                 # m0
                                 "m0",
-                                "m0b",
-                                "m0b2.3",
+                                # "m0b",
+                                # "m0b2.3",
                                 "m0c",
                                 "m0d",
                                 # m1
                                 "m11",
-                                "m11b",
-                                "m11b2.3",
+                                # "m11b",
+                                # "m11b2.3",
                                 "m11c",
                                 "m11d",
                                 
                                 "m12",
-                                "m12b",
-                                "m12b2.3",
+                                # "m12b",
+                                # "m12b2.3",
                                 "m12c",
                                 "m12d",
                                 # m2
                                 "m21",
-                                "m21b",
-                                "m21b2.3",
+                                # "m21b",
+                                # "m21b2.3",
                                 "m21c",
                                 "m21d",
                                 
                                 "m22",
-                                "m22b",
-                                "m22b2.3",
+                                # "m22b",
+                                # "m22b2.3",
                                 "m22c",
                                 "m22d"
                               ),
                               formula=c(
                                 # m0
                                 model_b0,
-                                paste(model_b0, total_vol,sep=" + "),
-                                paste(model_b0, total_vol23,sep=" + "),
+                                # paste(model_b0, total_vol,sep=" + "),
+                                # paste(model_b0, total_vol23,sep=" + "),
                                 paste(model_b0, lh_area,sep=" + "),
                                 paste(model_b0, lh_thick,sep=" + "),
                                 # m1
                                 paste(model_b0,cov11,sep=" + "),
-                                paste(model_b0,cov11,total_vol,sep=" + "),
-                                paste(model_b0,cov11,total_vol23,sep=" + "),
+                                # paste(model_b0,cov11,total_vol,sep=" + "),
+                                # paste(model_b0,cov11,total_vol23,sep=" + "),
                                 paste(model_b0,cov11,lh_area,sep=" + "),
                                 paste(model_b0,cov11,lh_thick,sep=" + "),
                                 
                                 paste(model_b0,cov12,sep=" + "),
-                                paste(model_b0,cov12,total_vol,sep=" + "),
-                                paste(model_b0,cov12,total_vol23,sep=" + "),
+                                # paste(model_b0,cov12,total_vol,sep=" + "),
+                                # paste(model_b0,cov12,total_vol23,sep=" + "),
                                 paste(model_b0,cov12,lh_area,sep=" + "),
                                 paste(model_b0,cov12,lh_thick,sep=" + "),
                                 # m2
                                 paste(model_b0,cov11,cov2,sep=" + "),
-                                paste(model_b0,cov11,cov2,total_vol,sep=" + "),
-                                paste(model_b0,cov11,cov2,total_vol23,sep=" + "),
+                                # paste(model_b0,cov11,cov2,total_vol,sep=" + "),
+                                # paste(model_b0,cov11,cov2,total_vol23,sep=" + "),
                                 paste(model_b0,cov11,cov2,lh_area,sep=" + "),
                                 paste(model_b0,cov11,cov2,lh_thick,sep=" + "),
                                 
                                 paste(model_b0,cov12,cov2,sep=" + "),
-                                paste(model_b0,cov12,cov2,total_vol,sep=" + "),
-                                paste(model_b0,cov12,cov2,total_vol23,sep=" + "),
+                                # paste(model_b0,cov12,cov2,total_vol,sep=" + "),
+                                # paste(model_b0,cov12,cov2,total_vol23,sep=" + "),
                                 paste(model_b0,cov12,cov2,lh_area,sep=" + "),
                                 paste(model_b0,cov12,cov2,lh_thick,sep=" + ")
                                 

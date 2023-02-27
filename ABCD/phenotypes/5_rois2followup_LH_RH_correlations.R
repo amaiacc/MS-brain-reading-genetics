@@ -97,10 +97,19 @@ ggplot(data=d,aes_string(x=dv1,y=dv2,color="high_educ_bl")) +
 d1<-d[,rois]
 colnames(d1) <- colnames(d1) 
 corROIS<-corr.test(d1,minlength =100,adjust="bonferroni")
+# replace p-values to corrected p-values only
+##  from help(corr.test): 
+## For symmetric matrices, raw probabilites are reported below the diagonal and 
+## correlations adjusted for multiple comparisons above the diagonal.
+# back up unadjusted exact p-values
+corROIS$p.unadjusted<-corROIS$p
+corROIS$p.unadjusted[upper.tri(corROIS$p.unadjusted)]<-t(corROIS$p.unadjusted)[upper.tri(corROIS$p.unadjusted)]
+# matrix p as corrected p-values
+corROIS$p[lower.tri(corROIS$p)]<-t(corROIS$p)[lower.tri(corROIS$p)]
 
 ## to long format
 corROIs_long<-do.call("cbind",
-  lapply(c("r","se","p"), function(m){
+  lapply(c("r","se","p","p.unadjusted"), function(m){
     x <- corROIS[m] %>% as.data.frame()
     x2 <- x %>%
       mutate(measure1=rownames(x)) %>%
@@ -119,9 +128,10 @@ tmp1<- corROIs_long %>% rename(m1=measure1, m2=measure2)
 tmp2<- corROIs_long %>% rename(m1=measure2, m2=measure1)
 tmp<-rbind(tmp1,tmp2)
 tmp[which(duplicated(tmp)),] %>% View()
+tmp3 <-tmp %>% distinct()
 ## plot
 c<-corROIS$r
-p<-corROIS$p
+p<-corROIS$p.unadjusted
 
 # # left hemi: upper triangle, 
 c2<-c[rois_lh,rois_lh]
@@ -133,6 +143,8 @@ p2[lower.tri(p2)]<-p[rois_rh,rois_rh] [p[rois_rh,rois_rh] %>% lower.tri()]
 # diagonal: left and right
 diag(c2)<-c[rois_lh,rois_rh]%>% diag()
 diag(p2)<-p[rois_lh,rois_rh] %>% diag()
+# correct for number of comparisons within matrix
+p2<-p2*NROW(p2)*NCOL(p2)
 
 # change names
 names<-colnames(c2) %>% gsub(".lh|.rh","",.) %>% gsub("\\.|_"," ",.) %>%
@@ -211,7 +223,21 @@ all_pcorsROIr<-lapply(covs, function(cov){
   # compute
   r<-partial.r(d[,c(rois,covs)],rois2,cov)
   corrmatp<-corr.p(r,n=NROW(d),minlength =100,adjust="bonferroni")
-  l<-list(r=r,p=corrmatp$p,corrtable=corrmatp$ci)
+  
+  # replace p-values to corrected p-values only
+  ##  from help(corr.test): 
+  ## For symmetric matrices, raw probabilites are reported below the diagonal and 
+  ## correlations adjusted for multiple comparisons above the diagonal.
+  # back up unadjusted exact p-values
+  corrmatp$p.unadjusted<-corrmatp$p
+  corrmatp$p.unadjusted[upper.tri(corrmatp$p.unadjusted)]<-t(corrmatp$p.unadjusted)[upper.tri(corrmatp$p.unadjusted)]
+  # matrix p as corrected p-values
+  corrmatp$p[lower.tri(corrmatp$p)]<-t(corrmatp$p)[lower.tri(corrmatp$p)]
+
+  l<-list(r=r,
+          p.unadjusted=corrmatp$p.unadjusted,
+          p=corrmatp$p,
+          corrtable=corrmatp$ci)
   return(l)
 })
 
@@ -260,6 +286,10 @@ c3[n,n][lower.tri(c3[n,n])]<- all_pcorsROIr$area_total_rh$r[lower.tri(all_pcorsR
 p3[n,n][lower.tri(p3[n,n])]<- all_pcorsROIr$area_total_rh$p[lower.tri(all_pcorsROIr$area_total_rh$p)]
 
 rm(n)
+
+# correct for number of comparisons within matrix
+p3<-p3*NROW(p3)*NCOL(p3)
+
 ##
 # rename
 # change names
@@ -312,9 +342,18 @@ rm(c,p)
 d1<-d_res[,paste0("residuals_",rois)]
 colnames(d1) <- colnames(d1) %>% gsub("residuals_","",.)
 corROIS<-corr.test(d1,minlength =100,adjust="bonferroni")
+# replace p-values to corrected p-values only
+##  from help(corr.test): 
+## For symmetric matrices, raw probabilites are reported below the diagonal and 
+## correlations adjusted for multiple comparisons above the diagonal.
+# back up unadjusted exact p-values
+corROIS$p.unadjusted<-corROIS$p
+corROIS$p.unadjusted[upper.tri(corROIS$p.unadjusted)]<-t(corROIS$p.unadjusted)[upper.tri(corROIS$p.unadjusted)]
+# matrix p as corrected p-values
+corROIS$p[lower.tri(corROIS$p)]<-t(corROIS$p)[lower.tri(corROIS$p)]
 #
 c<-corROIS$r
-p<-corROIS$p
+p<-corROIS$p.unadjusted
 
 # # left hemi: upper triangle, 
 c4<-c[rois_lh,rois_lh]
@@ -326,6 +365,9 @@ p4[lower.tri(p4)]<-p[rois_rh,rois_rh] [p[rois_rh,rois_rh] %>% lower.tri()]
 # diagonal: left and right
 diag(c4)<-c[rois_lh,rois_rh]%>% diag()
 diag(p4)<-p[rois_lh,rois_rh] %>% diag()
+
+# correct for number of comparisons within matrix
+p4<-p4*NROW(p4)*NCOL(p4)
 
 # change names
 names<-colnames(c4) %>% gsub(".lh|.rh","",.) %>% gsub("\\.|_"," ",.) %>%
@@ -384,9 +426,18 @@ rm(c,p)
 d1<-d_res[,paste0("residuals_globalAdj_",rois)]
 colnames(d1) <- colnames(d1) %>% gsub("residuals_globalAdj_","",.)
 corROIS<-corr.test(d1,minlength =100,adjust="bonferroni")
+# replace p-values to corrected p-values only
+##  from help(corr.test): 
+## For symmetric matrices, raw probabilites are reported below the diagonal and 
+## correlations adjusted for multiple comparisons above the diagonal.
+# back up unadjusted exact p-values
+corROIS$p.unadjusted<-corROIS$p
+corROIS$p.unadjusted[upper.tri(corROIS$p.unadjusted)]<-t(corROIS$p.unadjusted)[upper.tri(corROIS$p.unadjusted)]
+# matrix p as corrected p-values
+corROIS$p[lower.tri(corROIS$p)]<-t(corROIS$p)[lower.tri(corROIS$p)]
 #
 c<-corROIS$r
-p<-corROIS$p
+p<-corROIS$p.unadjusted
 
 # # left hemi: upper triangle, 
 c5<-c[rois_lh,rois_lh]
@@ -398,6 +449,9 @@ p5[lower.tri(p5)]<-p[rois_rh,rois_rh] [p[rois_rh,rois_rh] %>% lower.tri()]
 # diagonal: left and right
 diag(c5)<-c[rois_lh,rois_rh]%>% diag()
 diag(p5)<-p[rois_lh,rois_rh] %>% diag()
+
+# correct for number of comparisons within matrix
+p5<-p5*NROW(p5)*NCOL(p5)
 
 # change names
 names<-colnames(c5) %>% gsub(".lh|.rh","",.) %>% gsub("\\.|_"," ",.) %>%
@@ -459,21 +513,21 @@ plot_grid(corrplot_unadj + theme(legend.position = "none"),
           corrplot_res + theme(legend.position = "none"),
           corrplot_resAdjGlobal + theme(legend.position = "none"),
           align="hv",
-          nrow=1) %>%
+          nrow=3) %>%
   ggsave(file=paste0(out_dir,"corrplot_all_comparison.pdf"))
 
 
-corrplot_unadj %>%
-  ggsave(file=paste0(out_dir,"corrplot_all_unadj.pdf"))
-
-corrplot_adj %>%
-  ggsave(file=paste0(out_dir,"corrplot_all_adj.pdf"))
-
-corrplot_res %>%
-  ggsave(file=paste0(out_dir,"corrplot_all_res.pdf"))
-
-corrplot_resAdjGlobal %>%
-  ggsave(file=paste0(out_dir,"corrplot_all_resAdjGlobal.pdf"))
+# corrplot_unadj %>%
+#   ggsave(file=paste0(out_dir,"corrplot_all_unadj.pdf"))
+# 
+# corrplot_adj %>%
+#   ggsave(file=paste0(out_dir,"corrplot_all_adj.pdf"))
+# 
+# corrplot_res %>%
+#   ggsave(file=paste0(out_dir,"corrplot_all_res.pdf"))
+# 
+# corrplot_resAdjGlobal %>%
+#   ggsave(file=paste0(out_dir,"corrplot_all_resAdjGlobal.pdf"))
 
 leg<-get_legend(corrplot_res) %>% plot_grid()
 plot_grid(
@@ -481,7 +535,7 @@ plot_grid(
           corrplot_resAdjGlobal + theme(legend.position = "none")  + labs(title=""),
           align="hv",
           nrow=1,
-          labels=c("A","B")),
+          labels=c("a","b")),
   NULL,
   leg,
   rel_widths = c(1,0.05,0.1),nrow=1

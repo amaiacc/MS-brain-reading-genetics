@@ -5,8 +5,7 @@ rm(list=ls())
 args <- commandArgs(TRUE)
 config_file<-args[1]
 config_file="F:/projects//resources/datasets/ABCD/scripts/phenotypes/reading.config" # parameters for this run
-# config_file="F:/projects//resources/datasets/ABCD/scripts/phenotypes/picvocab.config" # parameters for this run
-hemi="rh"
+hemi="lh"
 #---------------------------------------------------
 
 # custom function to build c (model name), sequentially
@@ -50,6 +49,7 @@ library(ggsegDesterieux)
 # define directories
 if (Sys.info()['sysname']=='Windows') {dir="F:/projects/"} else {dir="/export/home/acarrion/acarrion/projects/"} #"/bcbl/home/home_a-f/acarrion/acarrion/projects/"
 scripts_dir=paste(dir,"/resources/datasets/ABCD/scripts/phenotypes/",sep="")
+source(paste0(scripts_dir,"general_functions.R"))
 # source config file to define parameters for this run
 source(config_file)
 #---------------------
@@ -70,7 +70,7 @@ if(atlas=="destrieux"){
 
 
 # get ROIs2follow, for main figures
-rois2follow <-read.table("summary/tables/ROImeasures2follow.txt") %>% rename(model=V1) %>% select(model)
+rois2follow <-read.table("summary/tables/ROImeasures2follow.txt") %>% rename(model=V1) %>% dplyr::select(model)
 
 
 ## sensitivity analyses controlling for cognitive covariates
@@ -81,6 +81,7 @@ for(cov1 in c(cov11,cov12)){
   )
   
   ttables<-ttables[grep("b_|b2.3_",ttables,invert=TRUE)] # do not include TBV adjusted - very similar to CSA and CT adjusted
+  ttables<-ttables[grep("int",ttables,invert=TRUE)] # do not include TBV adjusted - very similar to CSA and CT adjusted
   
   for (f in ttables){
     
@@ -100,7 +101,7 @@ for(cov1 in c(cov11,cov12)){
     t$region<-strsplit(as.character(t$model),atlas) %>% sapply("[[",2) %>% gsub("^_","",.) %>% gsub("\\.rh|\\.lh","",.) 
     t$matchLabel<-paste(t$hemi,t$region,sep="_")  %>% gsub("\\.","_",.)
     t<-merge(t,target_labels,by="matchLabel",all.x=TRUE,suffixes=c(".name","")) %>% 
-      mutate(label=as.factor(target)) %>% select(-matchLabel,-target) 
+      mutate(label=as.factor(target)) %>% dplyr::select(-matchLabel,-target) 
     t<-t %>% rename(P= Pr...t..,StdError=Std..Error) %>% mutate(minuslog10P=(-log10(P)))
     t$label<-as.factor(t$label)
     # t<- t %>% filter(region!="total" & region!="mean")
@@ -123,7 +124,7 @@ d$region[is.na(d$region)]<-d$region.name[is.na(d$region)]
 d$rois2follow<-FALSE
 d$rois2follow[d$model %in% rois2follow$model ]<-TRUE
 
-# new names for adjustement: i.e. adjGlobal or not
+# new names for adjustment: i.e. adjGlobal or not
 d$adjGlobal<-""
 d$adjGlobal[grep("TotalAreaLH|MeanThicknessLH",d$adj)]<-"adjGlobal"
 d$adjCognitive<-gsub(" \\+ TotalAreaLH| \\+ MeanThicknessLH","",d$adj) %>%
@@ -138,11 +139,12 @@ library(RColorBrewer)
 betas_order_csa <- d %>% filter(adj==""&measure=="area") %>% arrange(Estimate)
 betas_order_ct <- d %>% filter(adj==""&measure=="thick") %>% arrange(Estimate)
 
-d_csa <- d %>% filter(rois2follow==TRUE) %>% filter(measure=="area") %>% filter(!(region=="total"&adj!="")) %>% 
+d_csa <- d %>% filter(rois2follow==TRUE) %>% filter(measure=="area") %>% 
+  filter(!(region=="total"&adjGlobal!="")) %>%
   mutate(region=factor(region,levels=betas_order_csa %>% pull(region) %>% unique())) %>% 
   mutate(model=factor(model,levels=betas_order_csa %>% pull(model) %>% unique()))
 
-d_ct<-d %>% filter(rois2follow==TRUE) %>% filter(measure=="thick")%>% filter(!(region=="mean"&adj!="")) %>% 
+d_ct<-d %>% filter(rois2follow==TRUE) %>% filter(measure=="thick") %>% 
   mutate(region=factor(region,levels=betas_order_ct %>% pull(region) %>% unique())) %>% 
   mutate(model=factor(model,levels=betas_order_ct %>% pull(model) %>% unique()))
 
@@ -159,14 +161,14 @@ csa_betas <- ggplot(data=d_csa,
   ## more general styling
   scale_color_manual(values=brewer.pal(12, "Paired")[c(4,3)],
                      labels=c(
-                       bquote("Model1a: Reading  ~ covariates + " ~ CSA[RH]),
-                       bquote("Model2a: Reading  ~ covariates + " ~ totalCSA[RH] + CSA[RH]) )
-  ) +
-  scale_shape_manual(values=c(19,17),
-                     labels=c(
-                       bquote("Model1a: Reading  ~ covariates + " ~ CSA[RH]),
-                       bquote("Model2a: Reading  ~ covariates + " ~ totalCSA[RH] + CSA[RH]) )
-  ) +
+                       bquote(Model1a: ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ CSA[.(toupper(hemi))] ),
+                       bquote(Model2a: ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ totalCSA[.(toupper(hemi))] + CSA[.(toupper(hemi))] ) )
+                     ) +
+                       scale_shape_manual(values=c(19,17),
+                                          labels=c(
+                                            bquote(Model1a:  ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ CSA[.(toupper(hemi))] ),
+                                            bquote(Model2a:  ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ totalCSA[.(toupper(hemi))] + CSA[.(toupper(hemi))] ) )
+                                          ) +
   facet_grid(. ~ adjCognitive) +
   labs(title="",y="",color="Model",shape="Model") +
   theme(legend.position="bottom",legend.direction = "vertical") +
@@ -190,13 +192,13 @@ ct_betas <- ggplot(data=d_ct,
   ## more general styling
   scale_color_manual(values=brewer.pal(12, "Paired")[c(8,7)],
                      labels=c(
-                       bquote("Model1a: Reading  ~ covariates + " ~ CT[RH]),
-                       bquote("Model2a: Reading  ~ covariates + " ~ meanCT[RH] + CT[RH]) )
+                       bquote(Model1a: ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ CT[.(toupper(hemi))] ),
+                       bquote(Model2a: ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ meanCT[.(toupper(hemi))] + CT[.(toupper(hemi))] ) )
                        ) +
   scale_shape_manual(values=c(19,17),
                      labels=c(
-                       bquote("Model1a: Reading  ~ covariates + " ~ CT[RH]),
-                       bquote("Model2a: Reading  ~ covariates + " ~ meanCT[RH] + CT[RH]) )
+                       bquote(Model1a:  ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ CT[.(toupper(hemi))] ),
+                       bquote(Model2a:  ~.(simpleCap(pheno)) ~ "~" ~ covariates + ~ meanCT[.(toupper(hemi))] + CT[.(toupper(hemi))] ) )
   ) +
   facet_grid(. ~ adjCognitive) +
   labs(title="",y="",color="Model",shape="Model") +
@@ -209,11 +211,11 @@ ct_betas <- ggplot(data=d_ct,
   NULL
   
 
-all_betas<-plot_grid(
+all_betas <- plot_grid(
   csa_betas,
   ct_betas,
   rel_heights = c(1.5,3),
-  ncol=1, labels=c("A","B"))
+  ncol=1, labels=c("a","b"))
 
 # combined plots
 out_dir=paste0(dir,"resources/datasets/ABCD/data/working_data/","/output/")

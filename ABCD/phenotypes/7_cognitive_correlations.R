@@ -143,10 +143,40 @@ corrplot_unadj <- ggcorrplot::ggcorrplot(c2,
        fill="Corr. Coef.") + 
   NULL
 
+library(GGally)
 library(hexbin)
+# add p-value to plot ggpairs
+## following: https://stackoverflow.com/questions/61686171/how-to-add-the-spearman-correlation-p-value-along-with-correlation-coefficient-t
+printVar = function(x,y){
+  vals = cor.test(x,y,method="pearson")
+  vals$estimate<-round(vals$estimate,2) 
+  # vals$p.value<-format(vals$p.value,scientific=TRUE,digits=1)
+  vals$p.value<-ifelse(test = vals$p.value<2e-16,"***",
+                       paste0("p-value=",format(vals$p.value,scientific=TRUE,digits=1)))
+  out<-paste0("\nr=",round(vals$estimate,digits=2),
+              " ",vals$p.value,
+              paste0("\n95%CI=",round(vals$conf.int[1],2),";",round(vals$conf.int[2],2),""),
+              "\nt(df=",vals$parameter,")=",round(vals$statistic,2)
+              
+  )
+}
+my_fn <- function(data, mapping, ...){
+  # takes in x and y for each panel
+  xData <- eval_data_col(data, mapping$x)
+  yData <- eval_data_col(data, mapping$y)
+  #main correlation
+  mainCor = printVar(xData,yData)
+  p <- ggplot(data = data, mapping = mapping) +
+    annotate(x=0.5,y=0.8,label=mainCor,geom="text",size=3,color="grey30") +
+    theme_void() + ylim(c(0,1))
+  p
+}
+
+
 ggpairs_hex <- function(df, hexbins = 10) {
   # REF: https://stackoverflow.com/questions/20872133/using-stat-binhex-with-ggpairs
-  p <- ggpairs(df, lower="blank")
+  p <- ggpairs(df, lower="blank",
+               upper = list(continuous = my_fn))
   seq <- 1:ncol(df)
   for (x in seq)
     for (y in seq) 
@@ -156,6 +186,7 @@ ggpairs_hex <- function(df, hexbins = 10) {
   return(p)
 }
 
+# plot correlation across phenotypic variables
 corrpairs <- d1[,names] %>% ggpairs_hex(., hexbins=20) + theme_bw()
 #---------------------------------------------------
 
@@ -164,5 +195,6 @@ out_dir=paste0(working_dir,"/summary/figures/")
 corrplot_unadj %>%
   ggsave(file=paste0(out_dir,"corrplot_cognitive_all_unadj.pdf"))
 
-corrpairs %>% ggsave(file=paste0(out_dir,"corrpairs_cognitive_all_unadj.png"),height=4.5,width=4.5)
+corrpairs %>% ggsave(file=paste0(out_dir,"corrpairs_cognitive_all_unadj.png"),
+                     height=4.5,width=5)
 

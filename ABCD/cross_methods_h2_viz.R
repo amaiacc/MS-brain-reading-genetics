@@ -251,7 +251,7 @@ h2_plot<-plot_grid(
   h2_brain_plot + theme(legend.position="none") + labs(title="Reading associated brain measures"),
   rel_heights = c(1,1.2),
   ncol=1,  #align="v",
-  labels=c("A","B"),
+  labels=c("a","b"),
   axis ="l"
 )
 

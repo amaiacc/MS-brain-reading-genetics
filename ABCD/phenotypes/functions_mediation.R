@@ -3,6 +3,21 @@ library(mediation)
 library(lme4)
 library(dplyr); library(tidyr)
 
+# # trying to edit number of digits for mediation
+# as.list(body(mediation:::print.summary.mediate))[11]
+# trace(mediation:::print.summary.mediate,
+#       at=11,
+#       tracer=quote({
+#         printCoefmat<-function(x,digits){
+#           p<-x[,4]
+#           x[,1:3]<-sprintf("%.6f",x[,1:3])
+#           x[,4]<-sprintf("%.3f",x[,4])
+#           print(x,quote=FALSE,right=TRUE)
+#         }
+#       }),
+#       print=FALSE)
+# mediation:::print.summary.mediate(summary(results))
+
 #
 run_mediation<-function(dv, iv, mediator, covs, random, d){
   model_covs<-paste("~",paste(c(random,covs),collapse=" + "))
@@ -53,7 +68,9 @@ run_mediation<-function(dv, iv, mediator, covs, random, d){
   results = mediation::mediate(m2, m3, treat=iv, 
                                mediator=mediator,
                                covariates=covs,
-                               boot=FALSE)
+                               boot=FALSE, # cannot use boot=TRUE with lmer objects
+                               # robustSE=TRUE,
+                               sims=10000) 
   # boot=FALSE)
   # t<-psych::mediate(y=dv,x=iv,m=mediator,data=d)
   #---------------------------------------------------
@@ -92,15 +109,15 @@ get_mediation_table<-function(x2){
   B_ci$var<-rownames(B_ci)
   B<-merge(B_model,B_ci,by="var") %>% mutate(p=NA)
   Bp<-B %>% filter(var==med) %>% dplyr::select(Estimate,X2.5..,X97.5..,p)
-  Cdp<-B %>% filter(var==iv) %>% dplyr::select(Estimate,X2.5..,X97.5..,p)
+  Cdp<-B %>% filter(var==iv) %>% dplyr::select(Estimate,X2.5..,X97.5..,p) # C
   colnames(Bp)<-colnames(Cdp)<-c("Estimate","CIlower","CIupper","p")
   rm(B_model,B_ci,B)
   #-----------------------
   # stats from mediation
-  d<-cbind(Estimate=x$d.avg,CIlower=x$d.avg.ci[1],CIupper=x$d.avg.ci[2],p=x$d.avg.p)  
-  z<-cbind(Estimate=x$z.avg,CIlower=x$z.avg.ci[1],CIupper=x$z.avg.ci[2],p=x$z.avg.p)
-  t<-cbind(Estimate=x$tau.coef,CIlower=x$tau.ci[1],CIupper=x$tau.ci[2],p=x$tau.p)
-  prop<-cbind(Estimate=x$n.avg,CIlower=x$n.avg.ci[1],CIupper=x$n.avg.ci[2],p=x$n.avg.p)
+  d<-cbind(Estimate=x$d.avg,CIlower=x$d.avg.ci[1],CIupper=x$d.avg.ci[2],p=x$d.avg.p)  # ACME
+  z<-cbind(Estimate=x$z.avg,CIlower=x$z.avg.ci[1],CIupper=x$z.avg.ci[2],p=x$z.avg.p) # ADE
+  t<-cbind(Estimate=x$tau.coef,CIlower=x$tau.ci[1],CIupper=x$tau.ci[2],p=x$tau.p) # Total
+  prop<-cbind(Estimate=x$n.avg,CIlower=x$n.avg.ci[1],CIupper=x$n.avg.ci[2],p=x$n.avg.p) # Proportion
   
   m<-rbind(Ap,Bp,d,Cdp,z,t,prop) %>% as.data.frame()
   m$stat<-c("A","B","ACME","C'","ADE","Total","Proportion")

@@ -5,7 +5,6 @@ rm(list=ls())
 args <- commandArgs(TRUE)
 config_file<-args[1]
 config_file="F:/projects//resources/datasets/ABCD/scripts/phenotypes/reading.config" # parameters for this run
-# config_file="F:/projects//resources/datasets/ABCD/scripts/phenotypes/picvocab.config" # parameters for this run
 #---------------------------------------------------
 library(tidyverse)
 library(dplyr)
@@ -52,7 +51,17 @@ rm(s,v)
 
 #------------------------------------------
 # plot
-braincolor_codes<-colors_brain(data=summary_codes,atlas=atlas,p_col="region_h") 
+braincolor_codes<-colors_brain(data=summary_codes,atlas=atlas,p_col="region_h")
+braincolor_codes <- braincolor_codes %>% 
+  mutate(region_name=Region  %>% gsub("\\.","-",.) %>% gsub("-and-","+",.) %>% toupper() ) %>%
+  # not elegant, but to match the labels in the other plots
+  mutate(region_name2=Region  %>% gsub("\\.","-",.) %>%
+           gsub("g-","G ",.) %>%
+           gsub("s-","S ",.) %>%
+           gsub("-"," ",.) %>%
+           gsub("med ","med-",.) %>% gsub("sup ", "sup-",.) %>% gsub("oc ","oc-",.) %>% gsub("lat ","lat-",.)
+  )
+
 ## make ggseg plots for color coding regions
 titleA <- ggdraw() + 
   draw_label("CSA",fontface = 'bold',x = 0,hjust = 0 ) +   theme(    plot.margin = margin(0, 0, 0, 7) )
@@ -66,7 +75,8 @@ gg_ROIarea <- braincolor_codes %>% filter(measure=="AREA"&!is.na(label)) %>%
   geom_sf(aes(fill=Region),color="lightgrey",size=0.5) +
   theme_void() +
   scale_fill_manual(values=braincolor_codes %>% filter(measure=="AREA"&!is.na(label)&hemi=="left") %>% pull(color),
-                    labels=c(braincolor_codes %>% filter(measure=="AREA"&!is.na(label)&hemi=="left") %>% pull(Region) %>% as.character(),"n.s.")
+                    labels=c(braincolor_codes %>% filter(measure=="AREA"&!is.na(label)&hemi=="left") %>% pull(region_name2) %>% as.character(),"total"),
+                    na.value="white"
                     ) +
   theme(legend.position="none") +
   NULL
@@ -78,7 +88,8 @@ gg_ROIarea2 <- braincolor_codes %>% filter(measure=="AREA"&!is.na(label)) %>% fi
   geom_sf(aes(fill=Region),color="lightgrey",size=0.5) +
   theme_void() +
   scale_fill_manual(values=braincolor_codes %>% filter(measure=="AREA"&!is.na(label)&hemi=="left") %>% filter(Region=="g.temp.sup.lateral") %>% pull(color),
-                    labels=c(braincolor_codes %>% filter(measure=="AREA"&!is.na(label)&hemi=="left") %>% filter(Region=="g.temp.sup.lateral") %>% pull(Region) %>% as.character(),"n.s.")) +
+                    labels=c(braincolor_codes %>% filter(measure=="AREA"&!is.na(label)&hemi=="left") %>% filter(Region=="g.temp.sup.lateral") %>% pull(Region) %>% as.character(),"n.s."),
+                    na.value="white") +
   theme(legend.position="none") +
   NULL
 
@@ -89,6 +100,7 @@ gg_area <-  braincolor_codes %>% filter(measure=="AREA"&!is.na(label)) %>%
   geom_sf(fill=braincolor_codes %>% filter(measure=="AREA"&is.na(label)&hemi=="left") %>% pull(color),color="lightgrey",size=0.5) +
   # scale_fill_manual(values=braincolor_codes %>% filter(measure=="AREA"&is.na(label)&hemi=="left") %>% pull(color), labels="Total") +
   theme_void() +
+  
   theme(legend.position="none") +
   NULL
 
@@ -104,7 +116,8 @@ gg_ROIthick <- braincolor_codes %>% filter(measure=="THICKNESS"&!is.na(label)) %
   geom_sf(aes(fill=Region),color="lightgrey",size=0.5) +
   theme_void() +
   scale_fill_manual(values=braincolor_codes %>% filter(measure=="THICKNESS"&!is.na(label)&hemi=="left") %>% pull(color),
-                    labels=c(braincolor_codes %>% filter(measure=="THICKNESS"&!is.na(label)&hemi=="left") %>% pull(Region) %>% as.character(),"n.s.")
+                    labels=c(braincolor_codes %>% filter(measure=="THICKNESS"&!is.na(label)&hemi=="left") %>% pull(region_name2) %>% as.character(),"n.s."),
+                    na.value="white"
   ) +
   theme(legend.position="none") +
   NULL
@@ -116,17 +129,19 @@ gg_thick_all<-plot_grid(NULL,gg_ROIthick,ncol=1)
 # legend1<-get_legend(gg_area + guides(fill=guide_legend(title="Total Area")) + theme(legend.position="bottom",legend.direction="horizontal") )
 legend2<-get_legend(gg_ROIarea + theme(legend.position="bottom") + 
                       guides(fill=guide_legend(title="CSA",ncol=3,direction="vertical"))+
-                      theme(legend.justification="center")
+                      theme(legend.justification="left",legend.text=element_text(size=12),
+                            legend.title=element_text(size=14))
 )
 legend3<-get_legend(gg_ROIthick + theme(legend.position="bottom") +  
                       guides(fill=guide_legend(title="CT",ncol=3,direction="vertical")) +
-                      theme(legend.justification="center")
+                      theme(legend.justification="left",legend.text=element_text(size=12),
+                            legend.title=element_text(size=14))
                     )
-legend<-plot_grid(legend2,legend3,ncol=2,align="hv")
+legend<-plot_grid(legend2,legend3,ncol=1,align="hv")
 legend<-plot_grid(legend2,legend3,ncol=1,align="v")
 
 
-gg_legend_thick_all<-plot_grid(legend,gg_ROIthick,ncol=1)
+gg_legend_thick_all<-plot_grid(legend,gg_ROIthick,ncol=1,align="v")
 
 
 #----------------------------------------------------------------------

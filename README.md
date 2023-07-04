@@ -1,6 +1,6 @@
 # MS-brain-reading-genetics
 
-A repository for the __brain reading genetics__ project.
+A repository for scripts associated to the __brain reading genetics__ project.
 
 ### Citation
 
